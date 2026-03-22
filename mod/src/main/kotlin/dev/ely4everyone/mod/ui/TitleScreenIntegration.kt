@@ -13,7 +13,7 @@ object TitleScreenIntegration {
 
             Screens.getButtons(screen).add(
                 ElyIconButton(
-                    x = screen.width / 2 - 100 - ElyIconButton.WIDTH - 4,
+                    x = screen.width / 2 - 124 - ElyIconButton.SIZE - 4,
                     y = screen.height / 4 + 48 + 84,
                 ) {
                     client.setScreen(ElyAuthScreen(screen))

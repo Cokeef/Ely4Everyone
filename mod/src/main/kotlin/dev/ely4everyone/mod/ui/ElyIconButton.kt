@@ -13,15 +13,15 @@ import net.minecraft.util.Util
 import kotlin.math.roundToInt
 
 /**
- * Более заметная Ely.by-кнопка для title screen.
+ * Квадратная Ely.by-кнопка для title screen.
  *
- * Использует бренд-иконку и короткую fade/slide-анимацию при появлении.
+ * Использует бренд-иконку и короткую slide-анимацию при появлении.
  */
 class ElyIconButton(
     x: Int,
     y: Int,
     private val onPressAction: () -> Unit,
-) : PressableWidget(x, y, WIDTH, HEIGHT, BUTTON_LABEL) {
+) : PressableWidget(x, y, SIZE, SIZE, BUTTON_LABEL) {
     private val createdAtMs = Util.getMeasuringTimeMs()
 
     init {
@@ -34,66 +34,29 @@ class ElyIconButton(
             .let(::easeOutCubic)
         val drawX = x - ((1f - revealProgress) * ANIMATION_OFFSET_X).roundToInt()
         val drawY = y + ((1f - revealProgress) * ANIMATION_OFFSET_Y).roundToInt()
+        val shadowColor = withAlpha(COLOR_SHADOW, 0.55f * revealProgress)
+        context.fill(drawX - 1, drawY - 1, drawX + width + 1, drawY + height + 1, shadowColor)
 
-        val topColor: Int
-        val bottomColor: Int
-        val borderColor: Int
-        val labelColor: Int
-        val accentColor: Int
-
-        if (isSelected) {
-            topColor = withAlpha(COLOR_TOP_HOVER, revealProgress)
-            bottomColor = withAlpha(COLOR_BOTTOM_HOVER, revealProgress)
-            borderColor = withAlpha(COLOR_BORDER_HOVER, revealProgress)
-            labelColor = withAlpha(COLOR_TEXT_HOVER, revealProgress)
-            accentColor = withAlpha(COLOR_ACCENT_HOVER, revealProgress)
-        } else {
-            topColor = withAlpha(COLOR_TOP, revealProgress)
-            bottomColor = withAlpha(COLOR_BOTTOM, revealProgress)
-            borderColor = withAlpha(COLOR_BORDER, revealProgress)
-            labelColor = withAlpha(COLOR_TEXT, revealProgress)
-            accentColor = withAlpha(COLOR_ACCENT, revealProgress)
-        }
-
-        context.fillGradient(drawX, drawY, drawX + width, drawY + height, topColor, bottomColor)
-        context.fill(drawX, drawY, drawX + width, drawY + 1, borderColor)
-        context.fill(drawX, drawY + height - 1, drawX + width, drawY + height, borderColor)
-        context.fill(drawX, drawY + 1, drawX + 1, drawY + height - 1, borderColor)
-        context.fill(drawX + width - 1, drawY + 1, drawX + width, drawY + height - 1, borderColor)
-
-        val iconSlotRight = drawX + ICON_SLOT_WIDTH
-        context.fillGradient(
-            drawX + 1,
-            drawY + 1,
-            iconSlotRight,
-            drawY + height - 1,
-            accentColor,
-            withAlpha(COLOR_ACCENT_BOTTOM, revealProgress),
-        )
-        context.fill(iconSlotRight, drawY + 3, iconSlotRight + 1, drawY + height - 3, borderColor)
-
-        val textRenderer = MinecraftClient.getInstance().textRenderer
-        val iconX = drawX + 5
-        val iconY = drawY + (height - ICON_SIZE) / 2
-        context.drawGuiTexture(
+        context.drawTexture(
             RenderPipelines.GUI_TEXTURED,
             ICON_TEXTURE,
-            iconX,
-            iconY,
-            ICON_SIZE,
-            ICON_SIZE,
-            revealProgress,
+            drawX,
+            drawY,
+            0f,
+            0f,
+            width,
+            height,
+            width,
+            height,
         )
 
-        val labelX = drawX + ICON_SLOT_WIDTH + 6
-        val labelY = drawY + (height - textRenderer.fontHeight) / 2
-        context.drawTextWithShadow(
-            textRenderer,
-            BUTTON_LABEL,
-            labelX,
-            labelY,
-            labelColor,
-        )
+        if (isSelected) {
+            val borderColor = withAlpha(COLOR_BORDER_HOVER, revealProgress)
+            context.fill(drawX - 1, drawY - 1, drawX + width + 1, drawY, borderColor)
+            context.fill(drawX - 1, drawY + height, drawX + width + 1, drawY + height + 1, borderColor)
+            context.fill(drawX - 1, drawY, drawX, drawY + height, borderColor)
+            context.fill(drawX + width, drawY, drawX + width + 1, drawY + height, borderColor)
+        }
     }
 
     override fun onPress(input: AbstractInput) {
@@ -105,29 +68,16 @@ class ElyIconButton(
     }
 
     companion object {
-        const val WIDTH = 88
-        const val HEIGHT = 20
+        const val SIZE = 20
 
-        private const val ICON_SIZE = 14
-        private const val ICON_SLOT_WIDTH = 24
         private const val ANIMATION_DURATION_MS = 420f
-        private const val ANIMATION_OFFSET_X = 12f
-        private const val ANIMATION_OFFSET_Y = 4f
+        private const val ANIMATION_OFFSET_X = 8f
+        private const val ANIMATION_OFFSET_Y = 3f
 
-        private val COLOR_TOP = 0xFF0C2A31.toInt()
-        private val COLOR_BOTTOM = 0xFF143942.toInt()
-        private val COLOR_BORDER = 0xFF2CA98B.toInt()
-        private val COLOR_ACCENT = 0xFF164D4A.toInt()
-        private val COLOR_ACCENT_BOTTOM = 0xFF0F3636.toInt()
-        private val COLOR_TEXT = 0xFFE7FFF5.toInt()
-
-        private val COLOR_TOP_HOVER = 0xFF123842.toInt()
-        private val COLOR_BOTTOM_HOVER = 0xFF1A4951.toInt()
         private val COLOR_BORDER_HOVER = 0xFF54E4B0.toInt()
-        private val COLOR_ACCENT_HOVER = 0xFF1F655F.toInt()
-        private val COLOR_TEXT_HOVER = 0xFFFFFFFF.toInt()
+        private val COLOR_SHADOW = 0xFF041316.toInt()
 
-        private val BUTTON_LABEL = Text.literal("Ely.by")
+        private val BUTTON_LABEL = Text.literal("Ely.by auth")
         private val BUTTON_TOOLTIP = Text.literal("Войти через Ely.by")
         private val ICON_TEXTURE = Identifier.of("ely4everyone", "textures/gui/ely_icon.png")
 
