@@ -3,14 +3,27 @@ plugins {
     kotlin("jvm")
 }
 
+import java.util.Properties
+
 val minecraftVersion: String by project
 val yarnMappings: String by project
 val fabricLoaderVersion: String by project
 val fabricApiVersion: String by project
+val localProperties = Properties().apply {
+    val localPropertiesFile = rootProject.file("local.properties")
+    if (localPropertiesFile.exists()) {
+        localPropertiesFile.inputStream().use(::load)
+    }
+}
+val localModsDir = localProperties.getProperty("ely4everyone.modsDir")
+    ?.trim()
+    ?.takeIf { it.isNotEmpty() }
 
 base {
     archivesName.set("ely4everyone-mod")
 }
+
+val localModJarPattern = "${base.archivesName.get()}-*.jar"
 
 java {
     toolchain {
@@ -47,6 +60,73 @@ tasks.processResources {
     filesMatching("fabric.mod.json") {
         expand("version" to project.version)
     }
+}
+
+val syncToLocalMods by tasks.registering(Sync::class) {
+    group = "deployment"
+    description = "Builds the Ely4Everyone mod jar and copies it into the configured local mods folder."
+
+    dependsOn(tasks.named("remapJar"))
+
+    from(layout.buildDirectory.dir("libs")) {
+        include(localModJarPattern)
+        exclude("*-sources.jar", "*-dev.jar")
+    }
+
+    onlyIf {
+        if (localModsDir == null) {
+            logger.lifecycle(
+                "Skipping syncToLocalMods: set ely4everyone.modsDir in ${rootProject.file("local.properties")}.",
+            )
+            false
+        } else {
+            true
+        }
+    }
+
+    into(
+        providers.provider {
+            file(localModsDir ?: error("ely4everyone.modsDir is not configured"))
+        },
+    )
+
+    doFirst {
+        val sourceJars = fileTree(layout.buildDirectory.dir("libs").get().asFile) {
+            include(localModJarPattern)
+            exclude("*-sources.jar", "*-dev.jar")
+        }
+        check(sourceJars.files.isNotEmpty()) {
+            "No built Ely4Everyone mod jar was found in ${layout.buildDirectory.dir("libs").get().asFile}."
+        }
+
+        val targetDir = file(localModsDir ?: error("ely4everyone.modsDir is not configured"))
+        targetDir.mkdirs()
+        delete(
+            fileTree(targetDir) {
+                include(localModJarPattern)
+            },
+        )
+    }
+
+    doLast {
+        val targetDir = file(localModsDir ?: error("ely4everyone.modsDir is not configured"))
+        val deployedJars = fileTree(targetDir) {
+            include(localModJarPattern)
+        }.files
+            .sortedBy { it.name }
+            .joinToString { it.name }
+        logger.lifecycle("Synced $deployedJars to $targetDir")
+    }
+}
+
+val buildAndSyncToLocalMods by tasks.registering {
+    group = "deployment"
+    description = "Runs the mod build and syncs the resulting jar into the configured local mods folder."
+    dependsOn(tasks.named("build"))
+}
+
+tasks.named("build") {
+    finalizedBy(syncToLocalMods)
 }
 
 tasks.test {
