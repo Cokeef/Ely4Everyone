@@ -1,0 +1,127 @@
+package dev.ely4everyone.mod.auth
+
+import java.net.URI
+import java.net.URLEncoder
+import java.net.http.HttpClient
+import java.net.http.HttpRequest
+import java.net.http.HttpResponse
+import java.nio.charset.StandardCharsets
+import java.util.concurrent.CompletableFuture
+
+data class AuthPollResult(
+    val status: String,
+    val authSessionToken: String? = null,
+    val elyAccessToken: String? = null,
+    val username: String? = null,
+    val uuid: String? = null,
+    val expiresAtEpochSeconds: Long? = null,
+    val error: String? = null,
+)
+
+data class IssuedLoginTicketResult(
+    val ticket: String?,
+    val expiresAtEpochSeconds: Long?,
+    val error: String? = null,
+)
+
+object AuthHostClient {
+    private val httpClient: HttpClient = HttpClient.newHttpClient()
+
+    fun buildStartUri(relayBaseUrl: String, state: String, clientRedirectUri: String?): URI {
+        return URI.create(
+            buildString {
+                append(relayBaseUrl.trimEnd('/'))
+                append("/api/v1/auth/start?state=")
+                append(encode(state))
+                if (!clientRedirectUri.isNullOrBlank()) {
+                    append("&client_redirect_uri=")
+                    append(encode(clientRedirectUri))
+                }
+            },
+        )
+    }
+
+    fun poll(relayBaseUrl: String, state: String): AuthPollResult {
+        val request = HttpRequest.newBuilder(
+            URI.create(relayBaseUrl.trimEnd('/') + "/api/v1/auth/poll?state=" + encode(state)),
+        ).GET().build()
+
+        val response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8))
+        val values = parseLines(response.body())
+        return AuthPollResult(
+            status = values["status"] ?: if (response.statusCode() == 404) "failed" else "pending",
+            authSessionToken = values["auth_session_token"],
+            elyAccessToken = values["ely_access_token"],
+            username = values["username"],
+            uuid = values["uuid"],
+            expiresAtEpochSeconds = values["exp"]?.toLongOrNull(),
+            error = values["error"],
+        )
+    }
+
+    fun issueLoginTicketAsync(
+        relayBaseUrl: String,
+        authSessionToken: String,
+        nonce: String,
+        audience: String?,
+    ): CompletableFuture<IssuedLoginTicketResult> {
+        val uri = buildString {
+            append(relayBaseUrl.trimEnd('/'))
+            append("/api/v1/auth/issue-ticket?session_token=")
+            append(encode(authSessionToken))
+            append("&nonce=")
+            append(encode(nonce))
+            if (!audience.isNullOrBlank()) {
+                append("&audience=")
+                append(encode(audience))
+            }
+        }
+
+        val request = HttpRequest.newBuilder(URI.create(uri)).GET().build()
+        return httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8))
+            .thenApply { response ->
+                val values = parseLines(response.body())
+                IssuedLoginTicketResult(
+                    ticket = values["ticket"],
+                    expiresAtEpochSeconds = values["exp"]?.toLongOrNull(),
+                    error = values["error"],
+                )
+            }
+    }
+
+    fun latestSession(relayBaseUrl: String): AuthPollResult {
+        val request = HttpRequest.newBuilder(
+            URI.create(relayBaseUrl.trimEnd('/') + "/api/v1/auth/dev/latest-session"),
+        ).GET().build()
+
+        val response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8))
+        val values = parseLines(response.body())
+        return AuthPollResult(
+            status = values["status"] ?: if (response.statusCode() == 404) "failed" else "pending",
+            authSessionToken = values["auth_session_token"],
+            elyAccessToken = values["ely_access_token"],
+            username = values["username"],
+            uuid = values["uuid"],
+            expiresAtEpochSeconds = values["exp"]?.toLongOrNull(),
+            error = values["error"],
+        )
+    }
+
+    private fun encode(value: String): String {
+        return URLEncoder.encode(value, StandardCharsets.UTF_8)
+    }
+
+    private fun parseLines(payload: String): Map<String, String> {
+        return payload.lineSequence()
+            .filter { it.isNotBlank() }
+            .mapNotNull { line ->
+                val separator = line.indexOf('=')
+                if (separator <= 0) {
+                    null
+                } else {
+                    line.substring(0, separator) to line.substring(separator + 1)
+                }
+            }
+            .toMap()
+    }
+}

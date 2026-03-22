@@ -1,0 +1,10 @@
+{
+  "id": "ely4everyone",
+  "name": "Ely4Everyone",
+  "version": "${version}",
+  "description": "Trusted Ely identity flow for Velocity networks.",
+  "authors": [
+    "cokeef"
+  ],
+  "main": "dev.ely4everyone.velocity.Ely4EveryoneVelocityPlugin"
+}

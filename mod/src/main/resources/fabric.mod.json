@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "id": "ely4everyone",
+  "version": "${version}",
+  "name": "Ely4Everyone",
+  "description": "Ely identity layer for Fabric clients.",
+  "authors": [
+    "cokeef"
+  ],
+  "environment": "client",
+  "mixins": [
+    "ely4everyone.mixins.json"
+  ],
+  "entrypoints": {
+    "client": [
+      "dev.ely4everyone.mod.Ely4EveryoneClientMod"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=0.18.1",
+    "minecraft": "~1.21.11",
+    "java": ">=21",
+    "fabric-api": "*",
+    "fabric-language-kotlin": ">=1.13.8+kotlin.2.3.0"
+  }
+}

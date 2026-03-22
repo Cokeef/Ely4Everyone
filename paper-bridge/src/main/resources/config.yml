@@ -1,0 +1,5 @@
+enabled: true
+log-trusted-logins: true
+auto-login-delay-ticks: 20
+auto-login-command: "authme forcelogin {player}"
+

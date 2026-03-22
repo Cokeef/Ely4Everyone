@@ -1,0 +1,41 @@
+# Gradle / Kotlin
+.gradle/
+.kotlin/
+build/
+out/
+**/build/
+
+# IDEs / editors
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+.classpath
+.project
+.settings/
+bin/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Runtime state
+run/
+logs/
+crash-reports/
+*.log
+hs_err_pid*
+replay_pid*
+
+# Local sandbox and server data
+servers/
+
+# Local environment / secrets
+.env
+.env.*
+*.local
+*.jks
+*.keystore
+*.p12
+*.pem
