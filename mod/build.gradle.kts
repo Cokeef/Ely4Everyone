@@ -62,7 +62,7 @@ tasks.processResources {
     }
 }
 
-val syncToLocalMods by tasks.registering(Sync::class) {
+val syncToLocalMods by tasks.registering(Copy::class) {
     group = "deployment"
     description = "Builds the Ely4Everyone mod jar and copies it into the configured local mods folder."
 
