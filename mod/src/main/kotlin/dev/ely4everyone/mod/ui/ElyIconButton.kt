@@ -15,7 +15,7 @@ import kotlin.math.roundToInt
 /**
  * Квадратная Ely.by-кнопка для title screen.
  *
- * Использует бренд-иконку и короткую slide-анимацию при появлении.
+ * Использует бренд-иконку и короткую slide-анимацию снизу вверх после появления титульника.
  */
 class ElyIconButton(
     x: Int,
@@ -29,10 +29,11 @@ class ElyIconButton(
     }
 
     override fun drawIcon(context: DrawContext, mouseX: Int, mouseY: Int, delta: Float) {
-        val revealProgress = ((Util.getMeasuringTimeMs() - createdAtMs).toFloat() / ANIMATION_DURATION_MS)
+        val elapsedSinceCreated = (Util.getMeasuringTimeMs() - createdAtMs).toFloat()
+        val revealProgress = ((elapsedSinceCreated - ANIMATION_DELAY_MS) / ANIMATION_DURATION_MS)
             .coerceIn(0f, 1f)
             .let(::easeOutCubic)
-        val drawX = x - ((1f - revealProgress) * ANIMATION_OFFSET_X).roundToInt()
+        val drawX = x
         val drawY = y + ((1f - revealProgress) * ANIMATION_OFFSET_Y).roundToInt()
         val shadowColor = withAlpha(COLOR_SHADOW, 0.55f * revealProgress)
         context.fill(drawX - 1, drawY - 1, drawX + width + 1, drawY + height + 1, shadowColor)
@@ -70,9 +71,9 @@ class ElyIconButton(
     companion object {
         const val SIZE = 20
 
+        private const val ANIMATION_DELAY_MS = 180f
         private const val ANIMATION_DURATION_MS = 420f
-        private const val ANIMATION_OFFSET_X = 8f
-        private const val ANIMATION_OFFSET_Y = 3f
+        private const val ANIMATION_OFFSET_Y = 10f
 
         private val COLOR_BORDER_HOVER = 0xFF54E4B0.toInt()
         private val COLOR_SHADOW = 0xFF041316.toInt()
