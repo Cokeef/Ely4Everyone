@@ -57,6 +57,16 @@ object AuthWorkflowManager {
 
     fun currentState(): AuthFlowState = state
 
+    fun resetUiState(message: String = "Готов к входу через Ely.by") {
+        if (pendingStateId != null) {
+            return
+        }
+        state = AuthFlowState(
+            status = AuthFlowStatus.IDLE,
+            message = message,
+        )
+    }
+
     fun startBrowserLogin(): Boolean {
         if (pendingStateId != null) {
             state = AuthFlowState(
@@ -104,6 +114,20 @@ object AuthWorkflowManager {
         state = AuthFlowState(
             status = AuthFlowStatus.IDLE,
             message = "Локальная Ely-сессия очищена.",
+        )
+    }
+
+    fun cancelCurrentAttempt() {
+        pendingStateId = null
+        pendingRelayBaseUrl = null
+        pollingInFlight.set(false)
+        pendingStartedAtMillis = 0L
+        lastPolledStatus = null
+        localCallbackServer?.stop()
+        localCallbackServer = null
+        state = AuthFlowState(
+            status = AuthFlowStatus.IDLE,
+            message = "Авторизация отменена.",
         )
     }
 
