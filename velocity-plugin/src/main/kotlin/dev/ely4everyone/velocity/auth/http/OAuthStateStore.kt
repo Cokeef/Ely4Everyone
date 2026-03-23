@@ -27,17 +27,23 @@ class OAuthStateStore(
     fun complete(
         state: String,
         authSessionToken: String,
+        elyAccessToken: String,
         username: String,
         uuid: String,
         expiresAtEpochSeconds: Long,
+        texturesValue: String?,
+        texturesSignature: String?,
     ): PendingAuthSession {
         val session = PendingAuthSession(
             status = PendingAuthStatus.COMPLETED,
             state = state,
             expiresAtEpochSeconds = expiresAtEpochSeconds,
             authSessionToken = authSessionToken,
+            elyAccessToken = elyAccessToken,
             username = username,
             uuid = uuid,
+            texturesValue = texturesValue,
+            texturesSignature = texturesSignature,
         )
         sessions[state] = session
         return session

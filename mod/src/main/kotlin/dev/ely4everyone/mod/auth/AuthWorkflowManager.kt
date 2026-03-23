@@ -133,6 +133,8 @@ object AuthWorkflowManager {
                         authSessionExpiresAt = Instant.ofEpochSecond(expiresAt),
                         elyUsername = username,
                         elyUuid = uuid,
+                        elyTexturesValue = pollResult.texturesValue,
+                        elyTexturesSignature = pollResult.texturesSignature,
                     ),
                 )
                 ElyIdentityManager.fromClientSession(ClientSessionStore.load())?.let(MinecraftClientSessionBridge::applyElyIdentity)
@@ -218,6 +220,8 @@ object AuthWorkflowManager {
                             authSessionExpiresAt = Instant.ofEpochSecond(expiresAt),
                             elyUsername = username,
                             elyUuid = uuid,
+                            elyTexturesValue = pollResult.texturesValue,
+                            elyTexturesSignature = pollResult.texturesSignature,
                         ),
                     )
                     ElyIdentityManager.fromClientSession(ClientSessionStore.load())?.let(MinecraftClientSessionBridge::applyElyIdentity)

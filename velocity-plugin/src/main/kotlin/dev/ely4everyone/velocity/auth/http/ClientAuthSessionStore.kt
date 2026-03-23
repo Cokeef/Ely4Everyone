@@ -17,12 +17,19 @@ class ClientAuthSessionStore(
         loadFromDisk()
     }
 
-    fun create(username: String, uuid: String, properties: List<AuthProfileProperty>, now: Instant = Instant.now()): ClientAuthSession {
+    fun create(
+        username: String,
+        uuid: String,
+        elyAccessToken: String,
+        properties: List<AuthProfileProperty>,
+        now: Instant = Instant.now(),
+    ): ClientAuthSession {
         purgeExpired(now)
         val session = ClientAuthSession(
             sessionToken = java.util.UUID.randomUUID().toString(),
             username = username,
             uuid = uuid,
+            elyAccessToken = elyAccessToken,
             createdAtEpochSeconds = now.epochSecond,
             expiresAtEpochSeconds = now.plusSeconds(ttlSeconds).epochSecond,
             properties = properties,

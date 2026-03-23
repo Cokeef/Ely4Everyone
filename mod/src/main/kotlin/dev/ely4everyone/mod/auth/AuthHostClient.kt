@@ -15,6 +15,8 @@ data class AuthPollResult(
     val username: String? = null,
     val uuid: String? = null,
     val expiresAtEpochSeconds: Long? = null,
+    val texturesValue: String? = null,
+    val texturesSignature: String? = null,
     val error: String? = null,
 )
 
@@ -55,6 +57,8 @@ object AuthHostClient {
             username = values["username"],
             uuid = values["uuid"],
             expiresAtEpochSeconds = values["exp"]?.toLongOrNull(),
+            texturesValue = values["textures_value"],
+            texturesSignature = values["textures_signature"],
             error = values["error"],
         )
     }
@@ -103,6 +107,8 @@ object AuthHostClient {
             username = values["username"],
             uuid = values["uuid"],
             expiresAtEpochSeconds = values["exp"]?.toLongOrNull(),
+            texturesValue = values["textures_value"],
+            texturesSignature = values["textures_signature"],
             error = values["error"],
         )
     }

@@ -11,7 +11,10 @@ data class PendingAuthSession(
     val state: String,
     val expiresAtEpochSeconds: Long,
     val authSessionToken: String? = null,
+    val elyAccessToken: String? = null,
     val username: String? = null,
     val uuid: String? = null,
+    val texturesValue: String? = null,
+    val texturesSignature: String? = null,
     val error: String? = null,
 )

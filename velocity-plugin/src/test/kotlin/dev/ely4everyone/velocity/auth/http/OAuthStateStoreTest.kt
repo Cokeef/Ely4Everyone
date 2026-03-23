@@ -15,15 +15,19 @@ class OAuthStateStoreTest {
         store.complete(
             state = "state-1",
             authSessionToken = "session-1",
+            elyAccessToken = "ely-access-token",
             username = "PlayerThree",
             uuid = "uuid-3",
             expiresAtEpochSeconds = 500,
+            texturesValue = "textures-value",
+            texturesSignature = "textures-signature",
         )
 
         val session = store.get("state-1", Instant.ofEpochSecond(120))
         assertNotNull(session)
         assertEquals(PendingAuthStatus.COMPLETED, session.status)
         assertEquals("session-1", session.authSessionToken)
+        assertEquals("ely-access-token", session.elyAccessToken)
     }
 
     @Test
@@ -35,4 +39,3 @@ class OAuthStateStoreTest {
         assertNull(session)
     }
 }
-

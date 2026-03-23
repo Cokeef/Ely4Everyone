@@ -142,9 +142,12 @@ class EmbeddedAuthHttpServer(
             PendingAuthStatus.COMPLETED -> """
                 status=completed
                 auth_session_token=${session.authSessionToken.orEmpty()}
+                ely_access_token=${session.elyAccessToken.orEmpty()}
                 username=${session.username.orEmpty()}
                 uuid=${session.uuid.orEmpty()}
                 exp=${session.expiresAtEpochSeconds}
+                textures_value=${session.texturesValue.orEmpty()}
+                textures_signature=${session.texturesSignature.orEmpty()}
             """.trimIndent()
         }
 
@@ -204,9 +207,12 @@ class EmbeddedAuthHttpServer(
             body = """
                 status=completed
                 auth_session_token=${session.sessionToken}
+                ely_access_token=${session.elyAccessToken}
                 username=${session.username}
                 uuid=${session.uuid}
                 exp=${session.expiresAtEpochSeconds}
+                textures_value=${session.properties.firstOrNull { it.name == "textures" }?.value.orEmpty()}
+                textures_signature=${session.properties.firstOrNull { it.name == "textures" }?.signature.orEmpty()}
             """.trimIndent(),
         )
     }
@@ -271,18 +277,23 @@ class EmbeddedAuthHttpServer(
             val tokenResponse = oauthClient.exchangeCode(code)
             val accountInfo = oauthClient.fetchAccountInfo(tokenResponse.accessToken)
             val texturesProfile = oauthClient.fetchTexturesProfile(accountInfo.uuid)
+            val texturesProperty = texturesProfile.properties.firstOrNull { it.name == "textures" }
             val clientSession = clientSessionStore.create(
                 username = accountInfo.username,
                 uuid = accountInfo.uuid,
+                elyAccessToken = tokenResponse.accessToken,
                 properties = texturesProfile.properties,
             )
 
             stateStore.complete(
                 state = state,
                 authSessionToken = clientSession.sessionToken,
+                elyAccessToken = clientSession.elyAccessToken,
                 username = accountInfo.username,
                 uuid = accountInfo.uuid,
                 expiresAtEpochSeconds = clientSession.expiresAtEpochSeconds,
+                texturesValue = texturesProperty?.value,
+                texturesSignature = texturesProperty?.signature,
             )
 
             writeHtml(

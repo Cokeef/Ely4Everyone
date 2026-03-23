@@ -12,6 +12,7 @@ class ClientAuthSessionStoreTest {
         val created = store.create(
             username = "PlayerOne",
             uuid = "123e4567-e89b-12d3-a456-426614174000",
+            elyAccessToken = "access-token-1",
             properties = listOf(AuthProfileProperty("textures", "value")),
             now = Instant.ofEpochSecond(100),
         )
@@ -26,6 +27,7 @@ class ClientAuthSessionStoreTest {
         val created = store.create(
             username = "PlayerTwo",
             uuid = "123e4567-e89b-12d3-a456-426614174001",
+            elyAccessToken = "access-token-2",
             properties = emptyList(),
             now = Instant.ofEpochSecond(100),
         )
@@ -34,4 +36,3 @@ class ClientAuthSessionStoreTest {
         assertNull(loaded)
     }
 }
-
