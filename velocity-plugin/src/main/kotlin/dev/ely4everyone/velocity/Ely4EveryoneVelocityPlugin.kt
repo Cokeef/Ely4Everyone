@@ -14,6 +14,7 @@ import com.velocitypowered.api.proxy.messages.MinecraftChannelIdentifier
 import com.velocitypowered.api.util.GameProfile
 import dev.ely4everyone.velocity.auth.ReplayProtection
 import dev.ely4everyone.velocity.auth.TrustedLoginRegistry
+import dev.ely4everyone.velocity.auth.VelocityProfilePropertyAdapter
 import dev.ely4everyone.velocity.auth.http.EmbeddedAuthHttpServer
 import dev.ely4everyone.velocity.auth.http.IssuedLoginTicketRecord
 import dev.ely4everyone.velocity.config.ProxyConfigStore
@@ -97,20 +98,22 @@ class Ely4EveryoneVelocityPlugin @Inject constructor(
     @Subscribe
     fun onGameProfileRequest(event: GameProfileRequestEvent) {
         val trustedLogin = trustedLoginRegistry.take(event.username) ?: return
+        val adaptedProperties = VelocityProfilePropertyAdapter.adapt(trustedLogin.properties)
         val replacementProfile = GameProfile(
             trustedLogin.uuid,
             trustedLogin.ticket.username,
-            trustedLogin.properties.map { property ->
+            adaptedProperties.map { property ->
                 GameProfile.Property(property.name, property.value, property.signature)
             },
         )
 
         event.gameProfile = replacementProfile
         logger.info(
-            "Applied Ely trusted profile for {} -> {} ({})",
+            "Applied Ely trusted profile for {} -> {} ({}) with {} profile properties",
             event.username,
             trustedLogin.ticket.username,
             trustedLogin.ticket.subject,
+            adaptedProperties.size,
         )
     }
 

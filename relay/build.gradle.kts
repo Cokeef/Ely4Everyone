@@ -29,9 +29,9 @@ dependencies {
     implementation("io.ktor:ktor-server-content-negotiation-jvm")
     implementation("io.ktor:ktor-serialization-kotlinx-json-jvm")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
+    runtimeOnly("org.slf4j:slf4j-simple:2.0.17")
 }
 
 kotlin {
     jvmToolchain(21)
 }
-
