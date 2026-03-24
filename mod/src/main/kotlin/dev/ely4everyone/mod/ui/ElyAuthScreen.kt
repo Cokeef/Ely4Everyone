@@ -13,14 +13,20 @@ import net.minecraft.client.gl.RenderPipelines
 import net.minecraft.client.gui.DrawContext
 import net.minecraft.client.gui.screen.Screen
 import net.minecraft.client.gui.widget.ButtonWidget
+import net.minecraft.client.gui.widget.PlayerSkinWidget
 import net.minecraft.client.gui.widget.TextFieldWidget
 import net.minecraft.client.texture.NativeImage
 import net.minecraft.client.texture.NativeImageBackedTexture
+import net.minecraft.client.util.DefaultSkinHelper
+import net.minecraft.entity.player.PlayerSkinType
+import net.minecraft.entity.player.SkinTextures
 import net.minecraft.text.Text
+import net.minecraft.util.AssetInfo
 import net.minecraft.util.Identifier
 import java.net.URI
 import java.nio.charset.StandardCharsets
 import java.util.Base64
+import java.util.UUID
 import java.util.concurrent.CompletableFuture
 
 class ElyAuthScreen(
@@ -43,6 +49,7 @@ class ElyAuthScreen(
     private lateinit var errorMenuButton: ButtonWidget
     private lateinit var errorHostButton: ButtonWidget
     private lateinit var customAuthServerField: TextFieldWidget
+    private lateinit var playerPreviewWidget: PlayerSkinWidget
 
     private var previewSourceKey: String? = null
     private var previewFuture: CompletableFuture<NativeImage?>? = null
@@ -162,6 +169,15 @@ class ElyAuthScreen(
             }.dimensions(layout.left + 112, layout.formTop + 158, 108, 20).build(),
         )
 
+        playerPreviewWidget = addDrawableChild(
+            PlayerSkinWidget(
+                72,
+                90,
+                client!!.loadedEntityModels,
+                ::currentSkinTextures,
+            ),
+        )
+
         applyStageUi()
     }
 
@@ -211,6 +227,13 @@ class ElyAuthScreen(
 
         renderStageHeader(context, layout, stage)
 
+        when (stage) {
+            ElyAuthStage.HOST_SELECT -> renderHostStage(context, layout, session)
+            ElyAuthStage.WAITING -> renderWaitingStage(context, layout, authState)
+            ElyAuthStage.SUCCESS -> renderSuccessStage(context, layout, session)
+            ElyAuthStage.ERROR -> renderErrorStage(context, layout, authState)
+        }
+
         if (customAuthServerField.visible) {
             customAuthServerField.render(context, mouseX, mouseY, delta)
         }
@@ -228,15 +251,9 @@ class ElyAuthScreen(
             errorRetryButton,
             errorMenuButton,
             errorHostButton,
+            playerPreviewWidget,
         ).filter { it.visible }
             .forEach { it.render(context, mouseX, mouseY, delta) }
-
-        when (stage) {
-            ElyAuthStage.HOST_SELECT -> renderHostStage(context, layout, session)
-            ElyAuthStage.WAITING -> renderWaitingStage(context, layout, authState)
-            ElyAuthStage.SUCCESS -> renderSuccessStage(context, layout, session)
-            ElyAuthStage.ERROR -> renderErrorStage(context, layout, authState)
-        }
     }
 
     private fun renderStageHeader(context: DrawContext, layout: ElyAuthLayout, stage: ElyAuthStage) {
@@ -283,9 +300,12 @@ class ElyAuthScreen(
         val hintLines = mutableListOf(
             "Выбранный host: ${AuthServerPresets.byId(workingConfig.selectedAuthServerId).label}",
             "URL: ${workingConfig.resolvedAuthServerBaseUrl()}",
+            "Ник клиента: ${currentClientUsername()}",
+            "UUID клиента: ${currentClientUuid()}",
         )
         if (session.hasUsableAuthSession()) {
-            hintLines += "Есть сохранённая Ely-сессия для ${session.elyUsername ?: "неизвестного пользователя"}."
+            hintLines += "Ely.by ник: ${session.elyUsername ?: "неизвестно"}"
+            hintLines += "Ely.by UUID: ${session.elyUuid ?: "-"}"
         } else {
             hintLines += "Сохранённой Ely-сессии пока нет."
         }
@@ -344,39 +364,56 @@ class ElyAuthScreen(
             layout.left,
             layout.formTop + 40,
             layout.right,
-            layout.formTop + 144,
+            layout.formTop + 150,
             0xCC163926.toInt(),
             0xFF7CFF9A.toInt(),
         )
 
         val previewLeft = layout.left + 14
-        val previewTop = layout.formTop + 54
+        val previewTop = layout.formTop + 50
+        val previewSize = 72
         drawInfoCard(
             context,
             previewLeft,
             previewTop,
-            previewLeft + 52,
-            previewTop + 52,
+            previewLeft + previewSize,
+            previewTop + previewSize + 10,
             0xCC10272B.toInt(),
             0xFF5DD9C9.toInt(),
         )
-        renderSkinPreview(context, previewLeft + 10, previewTop + 10)
+        playerPreviewWidget.setX(previewLeft)
+        playerPreviewWidget.setY(previewTop)
+        playerPreviewWidget.setDimensions(previewSize, previewSize)
 
         val username = session.elyUsername ?: "неизвестно"
         val uuid = session.elyUuid ?: "-"
-        val sessionState = if (session.hasUsableAuthSession()) "Сессия сохранена локально" else "Сессия сохранена, но не активна"
-
-        context.drawTextWithShadow(textRenderer, Text.literal("Авторизация успешна"), layout.left + 78, layout.formTop + 50, 0xFF7CFF9A.toInt())
-        context.drawTextWithShadow(textRenderer, Text.literal("Ник: $username"), layout.left + 78, layout.formTop + 67, 0xE9FFF0.toInt())
-        context.drawTextWithShadow(textRenderer, Text.literal("UUID: $uuid"), layout.left + 78, layout.formTop + 79, 0xD6F6DE.toInt())
-        context.drawTextWithShadow(textRenderer, Text.literal(sessionState), layout.left + 78, layout.formTop + 91, 0xBDEBD1.toInt())
-        context.drawTextWithShadow(
-            textRenderer,
-            Text.literal("Теперь можно вернуться в меню и играть."),
-            layout.left + 78,
-            layout.formTop + 110,
-            0xBDEBD1.toInt(),
+        val clientUsername = currentClientUsername()
+        val activeSessionUuid = MinecraftClient.getInstance().session?.uuidOrNull?.toString() ?: "-"
+        val uuidMatches = uuid == activeSessionUuid
+        val sessionState = if (session.hasUsableAuthSession()) "Локальная Ely-сессия сохранена" else "Локальная Ely-сессия не активна"
+        val profileLines = listOf(
+            "Ely.by ник: $username",
+            "Ely UUID: $uuid",
+            "Ник клиента: $clientUsername",
+            "UUID клиента: $activeSessionUuid",
+            "UUID подменён: ${if (uuidMatches) "да" else "нет"}",
+            sessionState,
         )
+
+        context.drawTextWithShadow(textRenderer, Text.literal("Авторизация успешна"), layout.left + 94, layout.formTop + 50, 0xFF7CFF9A.toInt())
+        profileLines.forEachIndexed { index, line ->
+            context.drawTextWithShadow(
+                textRenderer,
+                Text.literal(line),
+                layout.left + 94,
+                layout.formTop + 66 + index * 12,
+                if (line.startsWith("UUID подменён:")) {
+                    if (uuidMatches) 0xC7FFD5.toInt() else 0xFFD0D0.toInt()
+                } else {
+                    0xF2FFF8.toInt()
+                },
+            )
+        }
     }
 
     private fun renderErrorStage(context: DrawContext, layout: ElyAuthLayout, authState: AuthFlowState) {
@@ -440,15 +477,27 @@ class ElyAuthScreen(
         }
     }
 
-    private fun renderSkinPreview(context: DrawContext, x: Int, y: Int) {
+    private fun currentSkinTextures(): SkinTextures {
+        val session = ClientSessionStore.load()
         val textureId = previewTextureId
         if (textureId != null) {
-            context.drawTexture(RenderPipelines.GUI_TEXTURED, textureId, x, y, 8f, 8f, 32, 32, 64, 64)
-            context.drawTexture(RenderPipelines.GUI_TEXTURED, textureId, x, y, 40f, 8f, 32, 32, 64, 64)
-        } else {
-            context.fill(x, y, x + 32, y + 32, 0xFF234347.toInt())
-            context.drawCenteredTextWithShadow(textRenderer, Text.literal("?"), x + 16, y + 12, 0xFFBCEDE6.toInt())
+            return SkinTextures.create(
+                object : AssetInfo.TextureAsset {
+                    override fun id(): Identifier = textureId
+
+                    override fun texturePath(): Identifier = textureId
+                },
+                null,
+                null,
+                extractSkinModel(session.elyTexturesValue),
+            )
         }
+
+        val uuid = session.elyUuid
+            ?.let { rawUuid -> runCatching { UUID.fromString(rawUuid) }.getOrNull() }
+            ?: MinecraftClient.getInstance().session?.uuidOrNull
+            ?: UUID.randomUUID()
+        return DefaultSkinHelper.getSkinTextures(uuid)
     }
 
     private fun drawPanel(context: DrawContext, left: Int, top: Int, right: Int, bottom: Int, fillColor: Int, borderColor: Int) {
@@ -509,6 +558,8 @@ class ElyAuthScreen(
         successRetryButton.active = showSuccess
         successHostButton.visible = showSuccess
         successHostButton.active = showSuccess
+        playerPreviewWidget.visible = showSuccess
+        playerPreviewWidget.active = showSuccess
 
         errorRetryButton.visible = showError
         errorRetryButton.active = showError
@@ -545,6 +596,14 @@ class ElyAuthScreen(
 
     private fun serverButtonLabel(): String {
         return "Auth-host: " + AuthServerPresets.byId(workingConfig.selectedAuthServerId).label
+    }
+
+    private fun currentClientUsername(): String {
+        return MinecraftClient.getInstance().session?.username ?: "неизвестно"
+    }
+
+    private fun currentClientUuid(): String {
+        return MinecraftClient.getInstance().session?.uuidOrNull?.toString() ?: "-"
     }
 
     private fun statusLabel(status: AuthFlowStatus): String {
@@ -639,6 +698,17 @@ class ElyAuthScreen(
         previewTexture?.close()
         previewTexture = null
         previewTextureId = null
+    }
+
+    private fun extractSkinModel(texturesValue: String?): PlayerSkinType {
+        val decoded = texturesValue?.let {
+            runCatching { String(Base64.getDecoder().decode(it), StandardCharsets.UTF_8) }.getOrNull()
+        } ?: return PlayerSkinType.WIDE
+        val metadata = Regex("\"metadata\"\\s*:\\s*\\{[^}]*\"model\"\\s*:\\s*\"([^\"]+)\"")
+            .find(decoded)
+            ?.groupValues
+            ?.getOrNull(1)
+        return PlayerSkinType.byModelMetadata(metadata)
     }
 
     private fun extractSkinUrl(texturesValue: String): String? {

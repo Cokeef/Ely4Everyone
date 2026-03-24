@@ -49,7 +49,7 @@ object AuthHostClient {
         ).GET().build()
 
         val response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8))
-        val values = parseLines(response.body())
+        val values = parsePayload(response.body())
         return AuthPollResult(
             status = values["status"] ?: if (response.statusCode() == 404) "failed" else "pending",
             authSessionToken = values["auth_session_token"],
@@ -84,7 +84,7 @@ object AuthHostClient {
         val request = HttpRequest.newBuilder(URI.create(uri)).GET().build()
         return httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8))
             .thenApply { response ->
-                val values = parseLines(response.body())
+                val values = parsePayload(response.body())
                 IssuedLoginTicketResult(
                     ticket = values["ticket"],
                     expiresAtEpochSeconds = values["exp"]?.toLongOrNull(),
@@ -99,7 +99,7 @@ object AuthHostClient {
         ).GET().build()
 
         val response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8))
-        val values = parseLines(response.body())
+        val values = parsePayload(response.body())
         return AuthPollResult(
             status = values["status"] ?: if (response.statusCode() == 404) "failed" else "pending",
             authSessionToken = values["auth_session_token"],
@@ -117,6 +117,15 @@ object AuthHostClient {
         return URLEncoder.encode(value, StandardCharsets.UTF_8)
     }
 
+    private fun parsePayload(payload: String): Map<String, String> {
+        val trimmed = payload.trim()
+        return if (trimmed.startsWith("{")) {
+            parseJsonObject(trimmed)
+        } else {
+            parseLines(trimmed)
+        }
+    }
+
     private fun parseLines(payload: String): Map<String, String> {
         return payload.lineSequence()
             .filter { it.isNotBlank() }
@@ -129,5 +138,40 @@ object AuthHostClient {
                 }
             }
             .toMap()
+    }
+
+    private fun parseJsonObject(payload: String): Map<String, String> {
+        fun readString(fieldName: String): String? {
+            val regex = Regex("\"" + Regex.escape(fieldName) + "\"\\s*:\\s*\"((?:\\\\.|[^\"\\\\])*)\"")
+            return regex.find(payload)?.groupValues?.get(1)?.let(::decodeJsonString)
+        }
+
+        fun readLong(fieldName: String): String? {
+            val regex = Regex("\"" + Regex.escape(fieldName) + "\"\\s*:\\s*(\\d+)")
+            return regex.find(payload)?.groupValues?.get(1)
+        }
+
+        return buildMap {
+            readString("status")?.let { put("status", it) }
+            readString("auth_session_token")?.let { put("auth_session_token", it) }
+            readString("ely_access_token")?.let { put("ely_access_token", it) }
+            readString("username")?.let { put("username", it) }
+            readString("uuid")?.let { put("uuid", it) }
+            readString("textures_value")?.let { put("textures_value", it) }
+            readString("textures_signature")?.let { put("textures_signature", it) }
+            readString("ticket")?.let { put("ticket", it) }
+            readString("error")?.let { put("error", it) }
+            readLong("exp")?.let { put("exp", it) }
+        }
+    }
+
+    private fun decodeJsonString(value: String): String {
+        return value
+            .replace("\\/", "/")
+            .replace("\\\"", "\"")
+            .replace("\\\\", "\\")
+            .replace("\\n", "\n")
+            .replace("\\r", "\r")
+            .replace("\\t", "\t")
     }
 }
