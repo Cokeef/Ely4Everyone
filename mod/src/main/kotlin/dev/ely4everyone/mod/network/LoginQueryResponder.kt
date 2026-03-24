@@ -3,6 +3,7 @@ package dev.ely4everyone.mod.network
 import dev.ely4everyone.mod.Ely4EveryoneClientMod
 import dev.ely4everyone.mod.auth.AuthHostClient
 import dev.ely4everyone.mod.auth.AuthPollResult
+import dev.ely4everyone.mod.config.ModConfigStore
 import dev.ely4everyone.mod.session.ClientSessionState
 import dev.ely4everyone.mod.session.ClientSessionStore
 import net.fabricmc.fabric.api.client.networking.v1.ClientLoginNetworking
@@ -77,13 +78,25 @@ object LoginQueryResponder {
     }
 
     private fun ensureUsableSession(sessionState: ClientSessionState): ClientSessionState? {
-        if (sessionState.hasUsableAuthSession()) {
-            return sessionState
+        val configuredRelayBaseUrl = ModConfigStore.load().resolvedAuthServerBaseUrl().trimEnd('/')
+        val alignedSession = if (sessionState.relayBaseUrl.trimEnd('/') != configuredRelayBaseUrl) {
+            logger.info(
+                "Stored Ely session relay_base_url={} does not match current auth-host={}. Re-aligning to current host.",
+                sessionState.relayBaseUrl,
+                configuredRelayBaseUrl,
+            )
+            sessionState.copy(relayBaseUrl = configuredRelayBaseUrl)
+        } else {
+            sessionState
         }
 
-        logger.info("Local Ely auth session is empty or expired. Trying to pull latest session from auth host.")
+        if (alignedSession.hasUsableAuthSession()) {
+            return alignedSession
+        }
+
+        logger.info("Local Ely auth session is empty or expired. Trying to pull latest session from auth host {}.", configuredRelayBaseUrl)
         val latestSession: AuthPollResult = runCatching {
-            AuthHostClient.latestSession(sessionState.relayBaseUrl)
+            AuthHostClient.latestSession(configuredRelayBaseUrl)
         }.getOrElse { exception ->
             logger.warn("Failed to pull latest Ely auth session from auth host.", exception)
             return null
@@ -91,6 +104,7 @@ object LoginQueryResponder {
 
         if (latestSession.status != "completed" ||
             latestSession.authSessionToken.isNullOrBlank() ||
+            latestSession.elyAccessToken.isNullOrBlank() ||
             latestSession.username.isNullOrBlank() ||
             latestSession.uuid.isNullOrBlank() ||
             latestSession.expiresAtEpochSeconds == null
@@ -100,11 +114,14 @@ object LoginQueryResponder {
         }
 
         val resolvedSession = ClientSessionState(
-            relayBaseUrl = sessionState.relayBaseUrl,
+            relayBaseUrl = configuredRelayBaseUrl,
             authSessionToken = latestSession.authSessionToken,
+            elyAccessToken = latestSession.elyAccessToken,
             authSessionExpiresAt = Instant.ofEpochSecond(latestSession.expiresAtEpochSeconds),
             elyUsername = latestSession.username,
             elyUuid = latestSession.uuid,
+            elyTexturesValue = latestSession.texturesValue,
+            elyTexturesSignature = latestSession.texturesSignature,
         )
         ClientSessionStore.save(resolvedSession)
         logger.info("Pulled latest Ely auth session for {} ({}) from auth host.", latestSession.username, latestSession.uuid)

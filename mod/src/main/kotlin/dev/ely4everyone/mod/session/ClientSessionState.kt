@@ -14,11 +14,17 @@ data class ClientSessionState(
 ) {
     fun hasUsableAuthSession(now: Instant = Instant.now()): Boolean {
         val expiresAt = authSessionExpiresAt ?: return false
-        return authSessionToken != null && expiresAt.isAfter(now)
+        return !authSessionToken.isNullOrBlank() && expiresAt.isAfter(now)
     }
 
     fun hasUsableElyAccessToken(now: Instant = Instant.now()): Boolean {
         val expiresAt = authSessionExpiresAt ?: return false
-        return elyAccessToken != null && expiresAt.isAfter(now)
+        return !elyAccessToken.isNullOrBlank() && expiresAt.isAfter(now)
+    }
+
+    fun hasRestorableElyIdentity(now: Instant = Instant.now()): Boolean {
+        return hasUsableElyAccessToken(now) &&
+            !elyUsername.isNullOrBlank() &&
+            !elyUuid.isNullOrBlank()
     }
 }

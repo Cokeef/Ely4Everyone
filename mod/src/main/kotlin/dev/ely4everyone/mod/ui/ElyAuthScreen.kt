@@ -359,25 +359,42 @@ class ElyAuthScreen(
     private fun renderSuccessStage(context: DrawContext, layout: ElyAuthLayout, session: ClientSessionState) {
         ensurePreviewRequested(session)
 
+        val successLeft = width / 2 - 240
+        val successRight = width / 2 + 240
+        val summaryTop = layout.formTop + 40
+        val summaryBottom = summaryTop + 116
+        val detailsTop = summaryBottom + 8
+        val detailsBottom = detailsTop + 64
+
         drawInfoCard(
             context,
-            layout.left,
-            layout.formTop + 40,
-            layout.right,
-            layout.formTop + 150,
+            successLeft,
+            summaryTop,
+            successRight,
+            summaryBottom,
             0xCC163926.toInt(),
             0xFF7CFF9A.toInt(),
         )
 
-        val previewLeft = layout.left + 14
-        val previewTop = layout.formTop + 50
-        val previewSize = 72
+        drawInfoCard(
+            context,
+            successLeft,
+            detailsTop,
+            successRight,
+            detailsBottom,
+            0xCC12252A.toInt(),
+            0xFF3B8C85.toInt(),
+        )
+
+        val previewLeft = successLeft + 14
+        val previewTop = summaryTop + 12
+        val previewSize = 92
         drawInfoCard(
             context,
             previewLeft,
             previewTop,
             previewLeft + previewSize,
-            previewTop + previewSize + 10,
+            previewTop + previewSize,
             0xCC10272B.toInt(),
             0xFF5DD9C9.toInt(),
         )
@@ -391,29 +408,29 @@ class ElyAuthScreen(
         val activeSessionUuid = MinecraftClient.getInstance().session?.uuidOrNull?.toString() ?: "-"
         val uuidMatches = uuid == activeSessionUuid
         val sessionState = if (session.hasUsableAuthSession()) "Локальная Ely-сессия сохранена" else "Локальная Ely-сессия не активна"
-        val profileLines = listOf(
-            "Ely.by ник: $username",
-            "Ely UUID: $uuid",
-            "Ник клиента: $clientUsername",
-            "UUID клиента: $activeSessionUuid",
-            "UUID подменён: ${if (uuidMatches) "да" else "нет"}",
-            sessionState,
+        val infoLeft = previewLeft + previewSize + 18
+        context.drawTextWithShadow(textRenderer, Text.literal("Авторизация успешна"), infoLeft, summaryTop + 10, 0xFF7CFF9A.toInt())
+        context.drawTextWithShadow(textRenderer, Text.literal("Ely.by ник: $username"), infoLeft, summaryTop + 28, 0xF2FFF8.toInt())
+        context.drawTextWithShadow(textRenderer, Text.literal("Ник клиента: $clientUsername"), infoLeft, summaryTop + 42, 0xF2FFF8.toInt())
+        context.drawTextWithShadow(
+            textRenderer,
+            Text.literal("UUID подменён: ${if (uuidMatches) "да" else "нет"}"),
+            infoLeft,
+            summaryTop + 56,
+            if (uuidMatches) 0xC7FFD5.toInt() else 0xFFD0D0.toInt(),
+        )
+        context.drawTextWithShadow(
+            textRenderer,
+            Text.literal("Теперь можно играть с локально сохранённой Ely-сессией."),
+            infoLeft,
+            summaryTop + 76,
+            0xBDEBD1.toInt(),
         )
 
-        context.drawTextWithShadow(textRenderer, Text.literal("Авторизация успешна"), layout.left + 94, layout.formTop + 50, 0xFF7CFF9A.toInt())
-        profileLines.forEachIndexed { index, line ->
-            context.drawTextWithShadow(
-                textRenderer,
-                Text.literal(line),
-                layout.left + 94,
-                layout.formTop + 66 + index * 12,
-                if (line.startsWith("UUID подменён:")) {
-                    if (uuidMatches) 0xC7FFD5.toInt() else 0xFFD0D0.toInt()
-                } else {
-                    0xF2FFF8.toInt()
-                },
-            )
-        }
+        context.drawTextWithShadow(textRenderer, Text.literal("Ely UUID"), successLeft + 12, detailsTop + 10, 0x8FD9CE.toInt())
+        context.drawTextWithShadow(textRenderer, Text.literal(uuid), successLeft + 12, detailsTop + 24, 0xF2FFF8.toInt())
+        context.drawTextWithShadow(textRenderer, Text.literal("UUID клиента"), successLeft + 12, detailsTop + 40, 0x8FD9CE.toInt())
+        context.drawTextWithShadow(textRenderer, Text.literal(activeSessionUuid), successLeft + 12, detailsTop + 54, 0xF2FFF8.toInt())
     }
 
     private fun renderErrorStage(context: DrawContext, layout: ElyAuthLayout, authState: AuthFlowState) {
@@ -560,6 +577,21 @@ class ElyAuthScreen(
         successHostButton.active = showSuccess
         playerPreviewWidget.visible = showSuccess
         playerPreviewWidget.active = showSuccess
+        if (showSuccess) {
+            val successLeft = width / 2 - 240
+            val successRight = width / 2 + 240
+            val buttonTop = layout().formTop + 230
+            successMenuButton.setX(successLeft)
+            successMenuButton.setY(buttonTop)
+            successRetryButton.setX(successLeft + 244)
+            successRetryButton.setY(buttonTop)
+            successHostButton.setX(successLeft)
+            successHostButton.setY(buttonTop + 26)
+            successHostButton.width = successRight - successLeft
+            playerPreviewWidget.setX(successLeft + 14)
+            playerPreviewWidget.setY(layout().formTop + 52)
+            playerPreviewWidget.setDimensions(92, 92)
+        }
 
         errorRetryButton.visible = showError
         errorRetryButton.active = showError

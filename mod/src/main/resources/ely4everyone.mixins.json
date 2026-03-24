@@ -4,7 +4,9 @@
   "compatibilityLevel": "JAVA_21",
   "client": [
     "client.ClientLoginNetworkHandlerMixin",
-    "client.MinecraftClientAccessor"
+    "client.MinecraftClientAccessor",
+    "client.MinecraftClientGameProfileMixin",
+    "client.YggdrasilMinecraftSessionServiceMixin"
   ],
   "injectors": {
     "defaultRequire": 1

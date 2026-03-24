@@ -1,28 +1,20 @@
 package dev.ely4everyone.mod.identity
 
-import com.mojang.authlib.Environment
-import com.mojang.authlib.exceptions.AuthenticationException
-import com.mojang.authlib.exceptions.AuthenticationUnavailableException
-import com.mojang.authlib.exceptions.ForcedUsernameChangeException
-import com.mojang.authlib.exceptions.InsufficientPrivilegesException
-import com.mojang.authlib.exceptions.InvalidCredentialsException
-import com.mojang.authlib.exceptions.UserBannedException
-import com.mojang.authlib.yggdrasil.YggdrasilAuthenticationService
 import dev.ely4everyone.mod.Ely4EveryoneClientMod
 import dev.ely4everyone.mod.session.ClientSessionStore
 import net.minecraft.client.MinecraftClient
 import net.minecraft.text.Text
 import org.slf4j.LoggerFactory
-import java.net.Proxy
+import java.net.URI
+import java.net.http.HttpClient
+import java.net.http.HttpRequest
+import java.net.http.HttpResponse
+import java.nio.charset.StandardCharsets
 
 object ElyAuthlibBridge {
     private val logger = LoggerFactory.getLogger("${Ely4EveryoneClientMod.MOD_ID}/authlib")
-    private val elyEnvironment = Environment(
-        "https://authserver.ely.by",
-        "https://authserver.ely.by",
-        "https://authserver.ely.by",
-        "ELY",
-    )
+    private val httpClient: HttpClient = HttpClient.newHttpClient()
+    private const val ELY_SESSION_JOIN_URL: String = "https://authserver.ely.by/session/join"
 
     fun hasUsableElySession(): Boolean {
         return ClientSessionStore.load().hasUsableElyAccessToken()
@@ -41,42 +33,30 @@ object ElyAuthlibBridge {
             )
         }
 
-        val authService = YggdrasilAuthenticationService(Proxy.NO_PROXY, elyEnvironment)
-        val sessionService = authService.createMinecraftSessionService()
-
         return try {
             logger.info("Joining server session through Ely authserver. uuid={}, serverId={}", uuid, serverId)
-            sessionService.joinServer(uuid, accessToken, serverId)
-            null
-        } catch (_: AuthenticationUnavailableException) {
-            Text.translatable(
-                "disconnect.loginFailedInfo",
-                Text.translatable("disconnect.loginFailedInfo.serversUnavailable"),
-            )
-        } catch (_: InvalidCredentialsException) {
-            Text.translatable(
-                "disconnect.loginFailedInfo",
-                Text.translatable("disconnect.loginFailedInfo.invalidSession"),
-            )
-        } catch (_: InsufficientPrivilegesException) {
-            Text.translatable(
-                "disconnect.loginFailedInfo",
-                Text.translatable("disconnect.loginFailedInfo.insufficientPrivileges"),
-            )
-        } catch (_: UserBannedException) {
-            Text.translatable(
-                "disconnect.loginFailedInfo",
-                Text.translatable("disconnect.loginFailedInfo.userBanned"),
-            )
-        } catch (_: ForcedUsernameChangeException) {
-            Text.translatable(
-                "disconnect.loginFailedInfo",
-                Text.translatable("disconnect.loginFailedInfo.userBanned"),
-            )
-        } catch (exception: AuthenticationException) {
+            val selectedProfile = uuid.toString().replace("-", "")
+            val body = """
+                {"accessToken":"$accessToken","selectedProfile":"$selectedProfile","serverId":"$serverId"}
+            """.trimIndent()
+            val request = HttpRequest.newBuilder(URI.create(ELY_SESSION_JOIN_URL))
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8))
+                .build()
+            val response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8))
+            if (response.statusCode() in 200..299) {
+                null
+            } else {
+                logger.warn(
+                    "Ely joinServerSession failed. status={}, body={}",
+                    response.statusCode(),
+                    response.body(),
+                )
+                Text.translatable("disconnect.loginFailedInfo", "Ely session join failed: HTTP ${response.statusCode()}")
+            }
+        } catch (exception: Exception) {
             logger.warn("Ely joinServerSession failed.", exception)
             Text.translatable("disconnect.loginFailedInfo", exception.message ?: "Authentication error")
         }
     }
 }
-
