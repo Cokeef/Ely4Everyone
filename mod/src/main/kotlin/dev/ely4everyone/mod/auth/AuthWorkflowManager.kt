@@ -111,6 +111,7 @@ object AuthWorkflowManager {
         localCallbackServer?.stop()
         localCallbackServer = null
         ClientSessionStore.clear()
+        MinecraftClientSessionBridge.restoreVanillaIdentity()
         state = AuthFlowState(
             status = AuthFlowStatus.IDLE,
             message = "Локальная Ely-сессия очищена.",
@@ -161,7 +162,7 @@ object AuthWorkflowManager {
                         elyTexturesSignature = pollResult.texturesSignature,
                     ),
                 )
-                ElyIdentityManager.fromClientSession(ClientSessionStore.load())?.let(MinecraftClientSessionBridge::applyElyIdentity)
+                MinecraftClientSessionBridge.refreshActiveIdentity()
                 state = AuthFlowState(
                     status = AuthFlowStatus.SUCCESS,
                     message = "Сессия синхронизирована: $username ($uuid)",
@@ -248,7 +249,7 @@ object AuthWorkflowManager {
                             elyTexturesSignature = pollResult.texturesSignature,
                         ),
                     )
-                    ElyIdentityManager.fromClientSession(ClientSessionStore.load())?.let(MinecraftClientSessionBridge::applyElyIdentity)
+                    MinecraftClientSessionBridge.refreshActiveIdentity()
 
                     pendingStateId = null
                     pendingRelayBaseUrl = null
@@ -338,7 +339,7 @@ object AuthWorkflowManager {
                 elyTexturesSignature = payload.texturesSignature,
             ),
         )
-        ElyIdentityManager.fromClientSession(ClientSessionStore.load())?.let(MinecraftClientSessionBridge::applyElyIdentity)
+        MinecraftClientSessionBridge.refreshActiveIdentity()
 
         pendingStateId = null
         pendingRelayBaseUrl = null

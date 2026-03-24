@@ -6,6 +6,8 @@
     "client.ClientLoginNetworkHandlerMixin",
     "client.MinecraftClientAccessor",
     "client.MinecraftClientGameProfileMixin",
+    "client.PlayerSkinProviderInvoker",
+    "client.PlayerSkinProviderMixin",
     "client.YggdrasilMinecraftSessionServiceMixin"
   ],
   "injectors": {

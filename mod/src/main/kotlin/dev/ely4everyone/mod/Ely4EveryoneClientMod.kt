@@ -2,7 +2,6 @@ package dev.ely4everyone.mod
 
 import dev.ely4everyone.mod.auth.AuthWorkflowManager
 import dev.ely4everyone.mod.config.ModConfigStore
-import dev.ely4everyone.mod.identity.ElyIdentityManager
 import dev.ely4everyone.mod.identity.MinecraftClientSessionBridge
 import dev.ely4everyone.mod.network.LoginQueryResponder
 import dev.ely4everyone.mod.session.ClientSessionStore
@@ -22,7 +21,7 @@ class Ely4EveryoneClientMod : ClientModInitializer {
         ClientSessionStore.saveDefaultsIfMissing()
         val config = ModConfigStore.load()
         val sessionState = ClientSessionStore.load()
-        ElyIdentityManager.fromClientSession(sessionState)?.let(MinecraftClientSessionBridge::applyElyIdentity)
+        MinecraftClientSessionBridge.refreshActiveIdentity()
         LoginQueryResponder.register()
         TitleScreenIntegration.register()
         ClientTickEvents.END_CLIENT_TICK.register(AuthWorkflowManager::tick)

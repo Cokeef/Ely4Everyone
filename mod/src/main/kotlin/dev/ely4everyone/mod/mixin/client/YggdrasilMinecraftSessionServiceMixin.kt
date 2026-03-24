@@ -4,8 +4,7 @@ import com.mojang.authlib.GameProfile
 import com.mojang.authlib.minecraft.MinecraftProfileTextures
 import com.mojang.authlib.properties.Property
 import com.mojang.authlib.yggdrasil.YggdrasilMinecraftSessionService
-import dev.ely4everyone.mod.identity.ElyIdentityManager
-import dev.ely4everyone.mod.session.ClientSessionStore
+import dev.ely4everyone.mod.identity.ActiveElyIdentityManager
 import org.spongepowered.asm.mixin.Mixin
 import org.spongepowered.asm.mixin.injection.At
 import org.spongepowered.asm.mixin.injection.Inject
@@ -18,13 +17,12 @@ abstract class YggdrasilMinecraftSessionServiceMixin {
         profile: GameProfile,
         cir: CallbackInfoReturnable<Property?>,
     ) {
-        val identity = ElyIdentityManager.fromClientSession(ClientSessionStore.load()) ?: return
-        val currentProfile = ElyIdentityManager.toGameProfile(identity) ?: return
+        val currentProfile = ActiveElyIdentityManager.currentGameProfileOrNull() ?: return
         if (currentProfile.id != profile.id || currentProfile.name != profile.name) {
             return
         }
 
-        cir.returnValue = ElyIdentityManager.toTexturesProperty(identity)
+        cir.returnValue = ActiveElyIdentityManager.currentTexturesPropertyOrNull()
     }
 
     @Inject(method = ["unpackTextures"], at = [At("HEAD")], cancellable = true)
@@ -32,12 +30,11 @@ abstract class YggdrasilMinecraftSessionServiceMixin {
         property: Property,
         cir: CallbackInfoReturnable<MinecraftProfileTextures>,
     ) {
-        val identity = ElyIdentityManager.fromClientSession(ClientSessionStore.load()) ?: return
-        val currentTextures = ElyIdentityManager.toTexturesProperty(identity) ?: return
-        if (currentTextures.value != property.value || currentTextures.signature != property.signature) {
+        val activeProperty = ActiveElyIdentityManager.currentTexturesPropertyOrNull() ?: return
+        if (activeProperty.value != property.value || activeProperty.signature != property.signature) {
             return
         }
 
-        cir.returnValue = ElyIdentityManager.toMinecraftProfileTextures(identity)
+        ActiveElyIdentityManager.currentProfileTexturesOrNull()?.let { cir.returnValue = it }
     }
 }
